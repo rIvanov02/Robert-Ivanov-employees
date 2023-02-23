@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Employee Pair Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+  <style>
+    table, tr ,th {
+      border: 2px solid;
+      
+    }
+
+    tr,th {
+      padding: 15px;
+      text-align: left;
+    }
+    body{
+      background-color: antiquewhite;
+    }
+    button {
+    color: black;
+    background-color: green;
+    }
+  
+  </style>
+</head>
+
+<body>
+  <h1>Employee Pair Analyzer</h1>
+  <input type="file" id="fileInput" />
+  <button id="btn">Analyze This</button>
+  <table id = "table">
+    <tr>
+      <th>Employee ID #1</th>
+      <th>Employee ID #2</th>
+      <th>Project ID</th>
+      <th>Days Worked</th>
+    </tr>
+    <tr>
+      <th id="emp1"></th>
+      <th id="emp2"></th>
+      <th id="project"></th>
+      <th id="days"></th>
+    </tr>
+  </table>
+
+  <script>
+    const btn = document.getElementById('btn')
+    btn.addEventListener('click', analyze)
+
+
+    function getWorkedDays(d1, d2) {
+      d1 = new Date(d1);
+      d2 = new Date(d2);
+      let differenceInTime = Math.abs(d1.getTime() - d2.getTime());
+      let diffInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
+      return diffInDays;
+    }
+
+    function analyze() {
+
+      var fileInput = document.getElementById("fileInput");
+      const div = document.getElementById("results");
+      let employees = [];
+      let filteredArray;
+      const resultObj = {};
+      const today = new Date().toLocaleDateString();
+
+      Papa.parse(fileInput.files[0], {
+        header: true,
+        complete: function (results) {
+          const arrayLength = results.data.length;
+
+          results.data.forEach(function (row, index) {
+            if (index != arrayLength - 1) {
+              if (row.DateTo == "null" || row.DateTo === null) {
+                const obj = {
+                  EmpID: row.EmpID,
+                  ProjectID: row.ProjectID,
+                  DateFrom: row.DateFrom,
+                  DateTo: today,
+                };
+                employees.push(obj);
+              } else {
+                employees.push(row);
+              }
+            }
+          });
+
+          const projectsIds = employees.map((employee) => employee.ProjectID);
+
+          var mostFrequent = 1;
+          var match = 0;
+          var item;
+          for (var i = 0; i < projectsIds.length; i++) {
+            for (var j = i; j < projectsIds.length; j++) {
+              if (projectsIds[i] == projectsIds[j]) match++;
+              if (mostFrequent < match) {
+                mostFrequent = match;
+                item = projectsIds[i];
+              }
+            }
+            match = 0;
+          }
+          filteredArray = employees.filter((x) => x.ProjectID === item);
+          filteredArray.sort((a, b) => {
+            return new Date(a.DateFrom) - new Date(b.DateFrom);
+          });
+          let proectID = filteredArray[0].ProjectID;
+          let daysWorkedTogether = 0;
+          let employeeCollegesTogether = {};
+
+          if (filteredArray.length >= 2) {
+            for (let i = 0; i < filteredArray.length; i++) {
+              const employee = filteredArray[i];
+              let employeeStartDate = Date.parse(employee.DateFrom);
+              let employeeEndDate = Date.parse(employee.DateTo);
+              employeeCollegesTogether[employee.EmpID] = [];
+
+              for (let j = i + 1; j < filteredArray.length; j++) {
+                const college = filteredArray[j];
+                let collegeStartDate = Date.parse(college.DateFrom);
+                let collegeEndDate = Date.parse(college.DateTo);
+                if (employeeEndDate > collegeStartDate) {
+                  if (employeeEndDate <= collegeEndDate) {
+                    daysWorkedTogether = getWorkedDays(
+                      employee.DateTo,
+                      college.DateFrom
+                    );
+                  } else {
+                    daysWorkedTogether = getWorkedDays(
+                      college.DateFrom,
+                      college.DateTo
+                    );
+                  }
+                  let my_obj = [];
+
+                  my_obj.push(college.EmpID, daysWorkedTogether);
+
+                  employeeCollegesTogether[`${employee.EmpID}`].push(my_obj);
+                }
+              }
+            }
+          }
+          let bestCollege = ``;
+          let theKey;
+          let biggest = 0;
+          for (const key in employeeCollegesTogether) {
+            if (employeeCollegesTogether[key].length != 0) {
+              employeeCollegesTogether[key].forEach((element) => {
+                if (biggest < Number(element[1])) {
+                  biggest = element[1];
+                  bestCollege = element[0];
+                  theKey = key;
+                }
+              });
+            }
+          }
+          resultObj[theKey] = {
+            proectID,
+            bestCollege,
+            biggest,
+          };
+          console.log(resultObj);
+          console.log(Object.keys(resultObj))
+
+
+
+          const table = document.getElementById('table')
+          const tr1 = document.getElementById('emp1')
+          tr1.textContent = `${Object.keys(resultObj)}`
+          const tr2 = document.getElementById('emp2')
+          tr2.textContent = `${resultObj[theKey].bestCollege}`
+          const tr3 = document.getElementById('project')
+          tr3.textContent = `${resultObj[theKey].proectID}`
+          const tr4 = document.getElementById('days')
+          tr4.textContent = `${resultObj[theKey].biggest}`
+          
+        },
+      });
+    }
+
+
+  </script>
+</body>
+
+</html>
